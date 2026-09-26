@@ -1,0 +1,2338 @@
+--=_________
+--=| Part 1 |
+--=|________|
+
+--// Services
+local Players = game:GetService("Players")
+local Workspace = game:GetService("Workspace")
+local Player = Players.LocalPlayer
+local PlayerGui = Player:WaitForChild("PlayerGui")
+
+local CurrentMode = "Collector"
+local FoundItems = {}
+local ItemButtons = {}
+local LockedDoors = {}
+local ItemTypeCount = {}
+local StatsLabel = nil
+local UpdateStats = function() end
+
+
+--========================--
+-- RESTART-SAFE SYSTEM
+-- Running the script again
+-- will clean the old one first
+--========================--
+if _G.ItemFinderCleanup then
+	pcall(_G.ItemFinderCleanup)
+end
+
+local ItemFinderConnections = {}
+local ItemFinderAlive = true
+local function TrackConnection(connection)
+	table.insert(ItemFinderConnections, connection)
+	return connection
+end
+_G.ItemFinderCleanup = function()
+	ItemFinderAlive = false
+	-- Disconnect saved connections
+	for _, connection in ipairs(ItemFinderConnections) do
+		pcall(function()
+			connection:Disconnect()
+		end)
+	end
+	table.clear(ItemFinderConnections)
+	-- Destroy old GUI
+	local OldGui = PlayerGui:FindFirstChild("ItemFinder")
+	if OldGui then
+		OldGui:Destroy()
+	end
+end
+-- Destroy any old GUI just in case
+local OldGui = PlayerGui:FindFirstChild("ItemFinder")
+
+if OldGui then
+	OldGui:Destroy()
+end
+
+
+
+--// GUI
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "ItemFinder"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+ScreenGui.Parent = PlayerGui
+
+--========================--
+-- Star Toggle Button
+--========================--
+
+local ToggleButton = Instance.new("TextButton")
+ToggleButton.Name = "Toggle"
+ToggleButton.Parent = ScreenGui
+ToggleButton.Size = UDim2.new(0, 55, 0, 55)
+ToggleButton.Position = UDim2.new(0, 690, 0, 10)
+ToggleButton.TextSize = 34
+ToggleButton.BackgroundColor3 = Color3.fromRGB(247, 247, 248)
+ToggleButton.BorderSizePixel = 0
+ToggleButton.AutoButtonColor = true
+ToggleButton.Text = "☠"
+ToggleButton.Font = Enum.Font.GothamBold
+ToggleButton.TextColor3 = Color3.fromRGB(8, 8, 8)
+
+ToggleButton.Active = true
+ToggleButton.Visible = true
+
+local ToggleCorner = Instance.new("UICorner")
+ToggleCorner.Parent = ToggleButton
+ToggleCorner.CornerRadius = UDim.new(0, 16)
+
+local ToggleStroke = Instance.new("UIStroke")
+ToggleStroke.Parent = ToggleButton
+ToggleStroke.Thickness = 2.5
+ToggleStroke.Color = Color3.fromRGB(148, 108, 255)
+
+_G.ObjectName = ToggleButton
+pcall(function()
+	loadstring(game:HttpGet("https://raw.githubusercontent.com/RahiChowdhury3366/Dragging-code/refs/heads/main/Dragging%20code"))()
+end)
+
+--========================--
+-- Main Window
+--========================--
+
+local MainFrame = Instance.new("Frame")
+MainFrame.Name = "ItemsGui"
+MainFrame.Parent = ScreenGui
+MainFrame.Visible = false
+MainFrame.Active = true
+MainFrame.Size = UDim2.new(0, 460, 0, 280)
+MainFrame.Position = UDim2.new(0, 160, 0, 10)
+MainFrame.AnchorPoint = Vector2.new(0, 0)
+MainFrame.BackgroundColor3 = Color3.fromRGB(18, 14, 28)
+MainFrame.BackgroundTransparency = 0.08
+MainFrame.BorderSizePixel = 0
+
+local MainCorner = Instance.new("UICorner")
+MainCorner.Parent = MainFrame
+MainCorner.CornerRadius = UDim.new(0, 14)
+
+local MainStroke = Instance.new("UIStroke")
+MainStroke.Parent = MainFrame
+MainStroke.Thickness = 1.5
+MainStroke.Color = Color3.fromRGB(149, 88, 244)
+
+_G.ObjectName = MainFrame
+pcall(function()
+	loadstring(game:HttpGet("https://raw.githubusercontent.com/RahiChowdhury3366/Dragging-code/refs/heads/main/Dragging%20code"))()
+end)
+
+--========================--
+-- Top Bar
+--========================--
+
+local TopBar = Instance.new("Frame")
+TopBar.Parent = MainFrame
+TopBar.Size = UDim2.new(1, 0, 0, 44)
+TopBar.BackgroundColor3 = Color3.fromRGB(25, 18, 45)
+TopBar.BackgroundTransparency = 1
+TopBar.BorderSizePixel = 0
+
+local TopCorner = Instance.new("UICorner")
+TopCorner.Parent = TopBar
+TopCorner.CornerRadius = UDim.new(0, 12)
+
+local TopStroke = Instance.new("UIStroke")
+TopStroke.Parent = TopBar
+TopStroke.Thickness = 0
+TopStroke.Color = Color3.fromRGB(70, 52, 116)
+
+local Title = Instance.new("TextLabel")
+Title.Parent = TopBar
+Title.BackgroundTransparency = 1
+Title.Position = UDim2.new(0, 14, 0, 8)
+Title.Size = UDim2.new(1, -70, 0, 22)
+Title.Font = Enum.Font.GothamBold
+Title.Text = "ITEM FINDER"
+Title.TextColor3 = Color3.fromRGB(245, 245, 245)
+Title.TextSize = 17
+Title.TextXAlignment = Enum.TextXAlignment.Left
+
+local CloseButton = Instance.new("TextButton")
+CloseButton.Parent = TopBar
+CloseButton.Size = UDim2.new(0, 44, 0, 44)
+CloseButton.Position = UDim2.new(1, -56, 0, 0)
+CloseButton.BackgroundColor3 = Color3.fromRGB(238, 88, 64)
+CloseButton.BorderSizePixel = 0
+CloseButton.Text = "X"
+CloseButton.Font = Enum.Font.GothamBold
+CloseButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+CloseButton.TextSize = 20
+
+local CloseCorner = Instance.new("UICorner")
+CloseCorner.Parent = CloseButton
+CloseCorner.CornerRadius = UDim.new(0, 9)
+
+--========================--
+-- Mode Tabs
+--========================--
+
+local ModeBar = Instance.new("Frame")
+ModeBar.Parent = MainFrame
+ModeBar.BackgroundTransparency = 1
+ModeBar.BorderSizePixel = 0
+ModeBar.Position = UDim2.new(0, 12, 0, 52)
+ModeBar.Size = UDim2.new(1, -24, 0, 38)
+
+local UnlockerTab = Instance.new("TextButton")
+UnlockerTab.Parent = ModeBar
+UnlockerTab.Size = UDim2.new(0.5, -5, 0, 38)
+UnlockerTab.Position = UDim2.new(0.5, 5, 0, 0)
+UnlockerTab.BackgroundColor3 = Color3.fromRGB(29, 24, 38)
+UnlockerTab.BorderSizePixel = 0
+UnlockerTab.Text = "Use mode"
+UnlockerTab.Font = Enum.Font.GothamBold
+UnlockerTab.TextScaled = true
+UnlockerTab.TextColor3 = Color3.fromRGB(168, 160, 179)
+
+local UnlockerCorner = Instance.new("UICorner")
+UnlockerCorner.Parent = UnlockerTab
+UnlockerCorner.CornerRadius = UDim.new(0, 10)
+
+local UnlockerStroke = Instance.new("UIStroke")
+UnlockerStroke.Parent = UnlockerTab
+UnlockerStroke.Thickness = 1
+UnlockerStroke.Color = Color3.fromRGB(81, 58, 110)
+
+local CollectorTab = Instance.new("TextButton")
+CollectorTab.Parent = ModeBar
+CollectorTab.Size = UDim2.new(0.5, -5, 0, 38)
+CollectorTab.Position = UDim2.new(0, 0, 0, 0)
+CollectorTab.BackgroundColor3 = Color3.fromRGB(29, 24, 38)
+CollectorTab.BorderSizePixel = 0
+CollectorTab.Text = "Normal mode"
+CollectorTab.Font = Enum.Font.GothamBold
+CollectorTab.TextScaled = true
+CollectorTab.TextColor3 = Color3.fromRGB(168, 160, 179)
+
+local CollectorCorner = Instance.new("UICorner")
+CollectorCorner.Parent = CollectorTab
+CollectorCorner.CornerRadius = UDim.new(0, 10)
+
+local CollectorStroke = Instance.new("UIStroke")
+CollectorStroke.Parent = CollectorTab
+CollectorStroke.Thickness = 1
+CollectorStroke.Color = Color3.fromRGB(81, 58, 110)
+
+--========================--
+-- Stats Label
+--========================--
+
+local StatsFrame = Instance.new("Frame")
+StatsFrame.Parent = MainFrame
+StatsFrame.BackgroundTransparency = 1
+StatsFrame.Position = UDim2.new(0, 12, 1, -24)
+StatsFrame.Size = UDim2.new(1, -24, 0, 18)
+
+StatsLabel = Instance.new("TextLabel")
+StatsLabel.Parent = StatsFrame
+StatsLabel.BackgroundTransparency = 1
+StatsLabel.Size = UDim2.new(1, 0, 1, 0)
+StatsLabel.Font = Enum.Font.GothamSemibold
+StatsLabel.TextColor3 = Color3.fromRGB(143, 88, 235)
+StatsLabel.TextSize = 13
+StatsLabel.TextXAlignment = Enum.TextXAlignment.Left
+StatsLabel.Text = "Items Found: 0"
+
+--========================--
+-- Items
+--========================--
+
+local ScrollingFrame = Instance.new("ScrollingFrame")
+ScrollingFrame.Parent = MainFrame
+ScrollingFrame.Position = UDim2.new(0, 12, 0, 100)
+ScrollingFrame.Size = UDim2.new(1, -24, 0, 157)
+ScrollingFrame.BackgroundTransparency = 0.92
+ScrollingFrame.BorderSizePixel = 0
+ScrollingFrame.ScrollBarThickness = 0
+ScrollingFrame.CanvasSize = UDim2.new()
+
+local UIGridLayout = Instance.new("UIGridLayout")
+UIGridLayout.Parent = ScrollingFrame
+UIGridLayout.CellSize = UDim2.new(0, 100, 0, 70)
+UIGridLayout.CellPadding = UDim2.new(0, 10, 0, 10)
+
+UIGridLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+	ScrollingFrame.CanvasSize = UDim2.new(0, 0, 0, UIGridLayout.AbsoluteContentSize.Y + 10)
+end)
+
+--========================--
+-- Mode / Stats Helpers
+--========================--
+
+local function UpdateModeUI()
+	if CurrentMode == "Unlocker" then
+		UnlockerTab.BackgroundColor3 = Color3.fromRGB(50, 40, 74)
+		UnlockerTab.TextColor3 = Color3.fromRGB(235, 225, 252)
+		CollectorTab.BackgroundColor3 = Color3.fromRGB(29, 24, 38)
+		CollectorTab.TextColor3 = Color3.fromRGB(168, 160, 179)
+		Title.Text = "ITEM FINDER"
+		if StatsLabel then
+			StatsLabel.Text = "Doors Found: " .. tostring(#LockedDoors)
+		end
+	else
+		UnlockerTab.BackgroundColor3 = Color3.fromRGB(29, 24, 38)
+		UnlockerTab.TextColor3 = Color3.fromRGB(168, 160, 179)
+		CollectorTab.BackgroundColor3 = Color3.fromRGB(50, 40, 74)
+		CollectorTab.TextColor3 = Color3.fromRGB(235, 225, 252)
+		Title.Text = "ITEM FINDER"
+		if StatsLabel then
+			StatsLabel.Text = "Items Found: " .. tostring(#FoundItems)
+		end
+	end
+end
+
+function UpdateStats()
+	if not StatsLabel then
+		return
+	end
+
+	if CurrentMode == "Unlocker" then
+		StatsLabel.Text = "Doors Found: " .. tostring(#LockedDoors)
+	else
+		StatsLabel.Text = "Items Found: " .. tostring(#FoundItems)
+	end
+end
+
+UnlockerTab.MouseButton1Click:Connect(function()
+	CurrentMode = "Unlocker"
+	UpdateModeUI()
+end)
+
+CollectorTab.MouseButton1Click:Connect(function()
+	CurrentMode = "Collector"
+	UpdateModeUI()
+end)
+
+UpdateModeUI()
+
+--========================--
+-- Open / Close
+--========================--
+
+ToggleButton.MouseButton1Click:Connect(function()
+	MainFrame.Visible = not MainFrame.Visible
+	if MainFrame.Visible then
+		UpdateStats()
+	end
+end)
+
+CloseButton.MouseButton1Click:Connect(function()
+	MainFrame.Visible = false
+end)
+--Some saved doors for each map.
+local SavedDoors = {
+   
+   
+   Plant = {
+
+	Battery = {
+		Vector3.new(-134.272537, 47.912117, 601.424805),
+	},
+
+	BlueKey = {
+		Vector3.new(-134.122192, 50.906025, 610.220947),
+	},
+
+	Coin = {
+		Vector3.new(-55.055763, 49.930134, 1176.468262),
+	},
+
+	GreenKeycard = {
+		Vector3.new(-139.328430, 49.864807, 658.477722),
+	},
+
+	GreenVial = {
+		Vector3.new(-265.384338, 52.682545, 746.470703),
+	},
+
+	Hammer = {
+		Vector3.new(-137.026367, 33.705132, 856.492126),
+	},
+
+	LitTorch = {
+		Vector3.new(-219.935791, 48.859997, 1185.448120),
+	},
+
+	Mallet = {
+		Vector3.new(-148.300339, 50.394447, 1118.062744),
+	},
+
+	OrangeKeycard = {
+		Vector3.new(-157.031326, 49.864807, 825.899902),
+	},
+
+	Photo = {
+		Vector3.new(-143.299057, 49.419117, 750.980225),
+	},
+
+	PinkVial = {
+		Vector3.new(-265.384338, 52.682545, 735.620972),
+	},
+
+	Plank = {
+		Vector3.new(-148.745331, 36.622139, 973.839844),
+	},
+
+	PurpleKey = {
+		Vector3.new(-167.193542, 49.937504, 577.854797),
+	},
+
+	RedKey = {
+		Vector3.new(-134.122192, 38.481030, 586.746033),
+	},
+
+	TNT = {
+		Vector3.new(-148.152237, 48.446644, 741.538635),
+	},
+
+	WhiteKey = {
+		Vector3.new(-134.542511, 49.700085, 1272.294189),
+	},
+
+	YellowKey = {
+		Vector3.new(-172.920486, 33.362534, 860.516235),
+	},
+},
+
+
+   Outpost = {
+
+	BlueKey = {
+		Vector3.new(-1123.927246, 111.045959, 312.966095),
+	},
+
+	BlueKeycard = {
+		Vector3.new(-1194.413086, 88.074951, 340.021820),
+	},
+
+	FireExtinguisher = {
+		Vector3.new(-1270.149780, 121.994629, 296.199707),
+		Vector3.new(-1182.249023, 88.369545, 339.074524),
+	},
+
+	OrangeKey = {
+		Vector3.new(-1183.001953, 89.270958, 200.516724),
+	},
+
+	PurpleKey = {
+		Vector3.new(-1129.065796, 98.374969, 276.376160),
+	},
+
+	RedKey = {
+		Vector3.new(-1233.889404, 100.086197, 239.754456),
+	},
+
+	Wrench = {
+		Vector3.new(-1269.275879, 99.667564, 187.550217),
+		Vector3.new(-1169.916992, 87.659973, 340.079895),
+	},
+
+	YellowKey = {
+		Vector3.new(-1175.892578, 87.599968, 258.143555),
+	},
+},
+
+
+   
+Mall = {
+
+	BlueKey = {
+		Vector3.new(-562.952087, 64.471008, -638.356873),
+	},
+
+	Coin = {
+		Vector3.new(-601.815186, 51.260174, -673.967834),
+	},
+
+	Crowbar = {
+		Vector3.new(-667.348328, 49.950077, -584.026611),
+		Vector3.new(-600.385803, 62.446846, -661.827942),
+		Vector3.new(-600.417114, 66.111679, -661.802979),
+	},
+
+	GreenKey = {
+		Vector3.new(-610.102905, 51.970993, -663.807983),
+	},
+
+	GreenKeycard = {
+		Vector3.new(-557.600159, 64.033325, -628.644714),
+	},
+
+	Mirror = {
+		Vector3.new(-611.499939, 50.187496, -535.924866),
+	},
+
+	OrangeKey = {
+		Vector3.new(-600.602905, 51.970993, -554.808044),
+	},
+
+	Plank = {
+		Vector3.new(-568.657410, 59.662533, -603.744080),
+	},
+
+	PurpleKey = {
+		Vector3.new(-636.202209, 50.150005, -598.358887),
+	},
+
+	WhiteKey = {
+		Vector3.new(-600.474976, 65.771133, -662.451782),
+	},
+
+	Wrench = {
+		Vector3.new(-608.420654, 64.000443, -661.471008),
+	},
+
+	YellowKey = {
+		Vector3.new(-612.024109, 49.849998, -591.656433),
+	},
+},
+
+
+   
+   City = {
+
+	BlueKeycard = {
+		Vector3.new(-95.080109, 64.145493, 1073.290527),
+	},
+
+	FireExtinguisher = {
+		Vector3.new(-175.624878, 101.335007, 1073.750000),
+		Vector3.new(-102.599754, 63.659977, 1137.775024),
+	},
+
+	Grass = {
+		Vector3.new(-114.838959, 63.100006, 1132.804810),
+	},
+
+	GreenKeycard = {
+		Vector3.new(-102.640022, 94.334999, 1086.056152),
+	},
+
+	KeyCode = {
+		Vector3.new(-122.321350, 64.274994, 1135.530640),
+	},
+
+	OrangeKeycard = {
+		Vector3.new(-160.689865, 82.385002, 1050.956055),
+	},
+
+	Plank = {
+		Vector3.new(-137.332611, 102.381943, 1057.924927),
+	},
+
+	PurpleKey = {
+		Vector3.new(-82.771103, 93.900124, 1084.815308),
+	},
+
+	RedKeycard = {
+		Vector3.new(-102.640022, 79.184990, 1086.056152),
+	},
+
+	TNT = {
+		Vector3.new(-100.853561, 64.621521, 978.184570),
+	},
+
+	Wrench = {
+		Vector3.new(-88.785637, 64.450409, 1135.279785),
+	},
+
+	YellowKey = {
+		Vector3.new(-147.442841, 63.849968, 1053.293579),
+	},
+},
+   
+   Metro = {
+
+	BlueKey = {
+		Vector3.new(276.913391, 19.811535, 20.299438),
+	},
+
+	BlueKeycard = {
+		Vector3.new(332.326691, 18.715584, -42.245392),
+	},
+	
+	Coin = {
+		Vector3.new(215.849792, 18.855177, -55.137482),
+	},
+
+	GreenKey = {
+		Vector3.new(217.763794, 19.827991, 40.125061),
+	},
+
+	Hammer = {
+		Vector3.new(239.414734, 21.525242, 60.844448),
+		Vector3.new(239.338226, 18.969082, 60.844479),
+	},
+
+	OrangeKey = {
+		Vector3.new(270.496552, 6.069402, -21.367065),
+	},
+
+	PurpleKey = {
+		Vector3.new(257.359833, 4.100054, -28.393402),
+	},
+
+	RedKey = {
+		Vector3.new(279.286438, 6.079220, -48.196594),
+	},
+
+	WhiteKey = {
+		Vector3.new(239.220093, 21.338268, 61.452576),
+	},
+
+	Wrench = {
+		Vector3.new(251.288147, 20.796959, 64.681671),
+	},
+
+	YellowKey = {
+		Vector3.new(287.950531, 17.875038, 1.693481),
+	},
+},
+   
+   Hospital = {
+
+	BlueKeycard = {
+		Vector3.new(26.780540, -8.974933, -381.124146),
+	},
+
+	EmptyVial = {
+		Vector3.new(73.639854, -10.974968, -339.017914),
+		Vector3.new(32.139851, 1.425033, -327.867798),
+	},
+
+	GreenKeycard = {
+		Vector3.new(6.099913, 3.525072, -365.694916),
+	},
+
+	GreenVial = {
+		Vector3.new(106.198288, 3.122469, -335.209259),
+	},
+
+	Hammer = {
+		Vector3.new(-9.165895, 15.251600, -279.369568),
+		Vector3.new(-9.192455, 18.365137, -279.369598),
+	},
+
+	OrangeKeycard = {
+		Vector3.new(64.135963, -8.924928, -381.114929),
+	},
+
+	PinkVial = {
+		Vector3.new(106.198288, 3.122469, -335.209259),
+	},
+
+	Plank = {
+		Vector3.new(23.425381, -0.375177, -274.644318),
+	},
+
+	PurpleKey = {
+		Vector3.new(77.967384, -8.449955, -306.621674),
+	},
+
+	RedKeycard = {
+		Vector3.new(21.769945, 3.475071, -307.759277),
+	},
+
+	WhiteKey = {
+		Vector3.new(-9.241682, 17.396156, -280.005920),
+	},
+
+	YellowKey = {
+		Vector3.new(-20.649380, 2.250032, -336.231476),
+	},
+},
+
+
+   
+   School = {
+
+	BlueKey = {
+		Vector3.new(130.567993, 4.921000, -141.828995),
+	},
+
+	Book = {
+		Vector3.new(176.450226, 18.550001, -51.925152),
+	},
+
+	GreenGear = {
+		Vector3.new(69.637474, 4.536329, -167.812393),
+	},
+
+	GreenKey = {
+		Vector3.new(83.817688, 4.921270, -29.878555),
+	},
+
+	Hammer = {
+		Vector3.new(72.228386, -9.636324, -151.251236),
+		Vector3.new(72.228378, -6.540321, -151.224808),
+	},
+
+	OrangeKey = {
+		Vector3.new(54.417755, 4.921270, -135.021286),
+	},
+
+	PurpleKey = {
+		Vector3.new(82.963814, 2.959557, -108.552544),
+	},
+
+	RedGear = {
+		Vector3.new(69.637474, 4.536329, -167.812393),
+	},
+
+	RedKey = {
+		Vector3.new(144.099945, 17.925003, -27.124893),
+	},
+
+	WhiteKey = {
+		Vector3.new(71.371979, -7.503846, -151.175842),
+	},
+
+	Wrench = {
+		Vector3.new(121.250000, 5.010158, -88.824791),
+		Vector3.new(72.204468, -7.499585, -143.629425),
+	},
+
+	YellowKey = {
+		Vector3.new(201.595062, 3.700034, -15.796514),
+	},
+},
+   
+   Forest = {
+
+	BlueKey = {
+		Vector3.new(-52.812477, 54.225014, -498.437531),
+	},
+
+	GreenKey = {
+		Vector3.new(8.296000, 60.870998, -431.143005),
+	},
+
+	Hammer = {
+		Vector3.new(-83.245705, 57.628773, -431.242767),
+		Vector3.new(-83.245728, 54.457306, -431.229614),
+	},
+
+	LitTorch = {
+		Vector3.new(114.083405, 54.759995, -340.380829),
+	},
+
+	OrangeKey = {
+		Vector3.new(77.418816, 54.225014, -506.224640),
+	},
+
+	Plank = {
+		Vector3.new(-51.372166, 88.308075, -426.574738),
+	},
+
+	PurpleKey = {
+		Vector3.new(101.911194, 60.527306, -437.423370),
+	},
+
+	RedKey = {
+		Vector3.new(134.061996, 61.046001, -443.694000),
+	},
+
+	Torch = {
+		Vector3.new(13.250000, 54.759995, -497.500000),
+	},
+
+	WhiteKey = {
+		Vector3.new(-83.748726, 55.949986, -431.198334),
+	},
+
+	Wrench = {
+		Vector3.new(6.637368, 56.110134, -359.574829),
+		Vector3.new(127.712372, 60.810127, -438.549591),
+		Vector3.new(-58.200008, 56.110134, -505.724823),
+	},
+
+	YellowKey = {
+		Vector3.new(-57.295437, 93.377327, -430.189392),
+	},
+},
+   
+   Gallery = {
+
+	GreenEgg = {
+		Vector3.new(-620.874268, 125.717545, -239.069092),
+	},
+
+	Hammer = {
+		Vector3.new(-620.743469, 127.563461, -309.436462),
+	},
+
+	Plank = {
+		Vector3.new(-623.299133, 142.262360, -292.043823),
+	},
+
+	RedEgg = {
+		Vector3.new(-620.874268, 125.717545, -239.069092),
+	},
+
+	RedKey = {
+		Vector3.new(-648.309937, 146.477661, -285.472473),
+	},
+
+	WhiteKey = {
+		Vector3.new(-620.869751, 126.829895, -310.093811),
+	},
+
+	Wrench = {
+		Vector3.new(-567.699646, 126.710159, -306.919159),
+		Vector3.new(-626.166626, 126.910187, -309.411499),
+	},
+
+	YellowKey = {
+		Vector3.new(-648.699341, 144.257614, -271.681335),
+	},
+},
+    
+  Station = {
+
+	Battery = {
+		Vector3.new(-14.772338, 32.252537, 752.474976),
+	},
+
+	BlueKey = {
+		Vector3.new(-0.461365, 35.079891, 710.349976),
+	},
+
+	Gas = {
+		Vector3.new(-28.224365, 33.893177, 543.325012),
+	},
+
+	GreenKey = {
+		Vector3.new(-63.811218, 35.079891, 654.799927),
+	},
+
+	Hammer = {
+		Vector3.new(-28.121582, 35.774632, 569.000000),
+		Vector3.new(-28.100098, 33.257282, 569.000000),
+	},
+
+	OrangeKey = {
+		Vector3.new(19.596375, 21.771296, 663.357605),
+	},
+
+	Plank = {
+		Vector3.new(-83.700317, 17.362368, 650.599915),
+	},
+
+	PurpleKey = {
+		Vector3.new(54.233063, 48.127296, 622.298645),
+	},
+
+	RedKey = {
+		Vector3.new(-49.503113, 35.079891, 579.492615),
+	},
+
+	WhiteKey = {
+		Vector3.new(-28.103088, 35.079891, 568.342590),
+	},
+
+	Wrench = {
+		Vector3.new(57.549866, 35.110157, 642.525146),
+		Vector3.new(-33.999874, 35.710178, 569.024963),
+	},
+
+	YellowKey = {
+		Vector3.new(-55.801998, 32.077305, 576.820007),
+	},
+
+},  
+    
+Carnival = {
+
+	BlueKey = {
+		Vector3.new(-493.548615, 76.870377, 470.580109),
+	},
+
+	GreenKey = {
+		Vector3.new(-482.832214, 79.221283, 306.571503),
+	},
+
+	Hammer = {
+		Vector3.new(-386.269958, 80.225525, 450.899933),
+		Vector3.new(-386.269958, 77.549057, 450.922791),
+	},
+
+	KeyCode = {
+		Vector3.new(-386.860199, 79.425003, 457.140289),
+	},
+
+	Mallet = {
+		Vector3.new(-470.300323, 78.605194, 438.712494),
+	},
+
+	OrangeKey = {
+		Vector3.new(-373.157257, 78.546280, 353.521423),
+	},
+
+	Plank = {
+		Vector3.new(-470.132477, 87.312531, 387.357544),
+	},
+
+	PurpleKey = {
+		Vector3.new(-470.571167, 78.000031, 488.065247),
+	},
+
+	RedKey = {
+		Vector3.new(-498.648773, 76.870377, 387.405243),
+	},
+
+	WaterGun = {
+		Vector3.new(-515.000366, 78.605194, 322.212524),
+	},
+
+	WhiteKey = {
+		Vector3.new(-385.756989, 79.276001, 450.947998),
+	},
+
+	Wrench = {
+		Vector3.new(-475.699982, 83.216446, 504.125214),
+		Vector3.new(-386.971039, 79.550415, 443.504547),
+  },
+
+	YellowKey = {
+		Vector3.new(-535.442932, 77.350037, 446.093506),
+	},
+},
+    
+    House = {
+        BlueKey = {
+            Vector3.new(24.600004, 53.300007, 18.399963),
+        },
+
+        GreenKey = {
+            Vector3.new(-7.053581, 56.354881, -49.407383),
+        },
+
+        Wrench = {
+            Vector3.new(17.199995, 57.310211, -84.774994),
+            Vector3.new(-5.450007, 83.010155, -64.574974),
+        },
+
+        Hammer = {
+            Vector3.new(24.874996, 55.407291, -84.699959),
+            Vector3.new(24.825592, 58.294052, -84.699959),
+            Vector3.new(27.621645, 41.469799, -42.1999512),
+        },
+
+        KeyCode = {
+            Vector3.new(31.474995, 57.352516, -84.925034),
+        },
+
+        YellowKey = {
+            Vector3.new(15.336365, 40.727295, -79.114120),
+        },
+
+        RedKey = {
+            Vector3.new(27.296432, 83.329895, -76.007423),
+        },
+
+        PurpleKey = {
+            Vector3.new(16.404510, 43.377281, -10.173160),
+        },
+
+        GreenGear = {
+            Vector3.new(13.600004, 52.450001, 18.399981),
+        },
+
+        RedGear = {
+            Vector3.new(13.600004, 52.450001, 18.399981),
+        },
+
+        OrangeKey = {
+            Vector3.new(46.746418, 43.229893, -55.832390),
+        },
+
+        Plank = {
+            Vector3.new(14.249997, 79.012390, -59.950020),
+        },
+
+        WhiteKey = {
+            Vector3.new(24.746421813964844, 57.30595016479492, -85.40747833251953),
+        },
+    }
+}
+
+--========================================
+-- Automatic Door Recorder
+-- Put this directly BELOW SavedDoors
+--========================================
+
+local RecordedDoors = {}
+
+local function RecordDoor(MapName, ItemName, DoorPosition)
+	if not MapName or not ItemName or not DoorPosition then
+		return
+	end
+
+	RecordedDoors[MapName] = RecordedDoors[MapName] or {}
+	RecordedDoors[MapName][ItemName] = RecordedDoors[MapName][ItemName] or {}
+
+	local List = RecordedDoors[MapName][ItemName]
+
+	-- Don't save duplicates
+	for _, Pos in ipairs(List) do
+		if (Pos - DoorPosition).Magnitude < 1 then
+			return
+		end
+	end
+
+	table.insert(List, DoorPosition)
+
+	------------------------------------------------
+	-- Build Lua
+	------------------------------------------------
+
+	local Output = ""
+
+	for Map, Items in pairs(RecordedDoors) do
+
+		Output ..= Map .. " = {\n"
+
+		local ItemNames = {}
+
+		for Name in pairs(Items) do
+			table.insert(ItemNames, Name)
+		end
+
+		table.sort(ItemNames)
+
+		for _, Name in ipairs(ItemNames) do
+
+			Output ..= "\n\t" .. Name .. " = {\n"
+
+			for _, Pos in ipairs(Items[Name]) do
+
+				Output ..=
+					string.format(
+						"\t\tVector3.new(%.6f, %.6f, %.6f),\n",
+						Pos.X,
+						Pos.Y,
+						Pos.Z
+					)
+
+			end
+
+			Output ..= "\t},\n"
+
+		end
+
+		Output ..= "},\n\n"
+
+	end
+
+	pcall(function()
+		setclipboard(Output)
+	end)
+
+	print(Output)
+	warn("Door table copied to clipboard.")
+end
+
+--Current running Camera
+local function GetCurrentMap()
+	if Workspace:FindFirstChild("House") then
+		return "House"
+	elseif Workspace:FindFirstChild("Station") then
+		return "Station"
+	elseif Workspace:FindFirstChild("Gallery") then
+		return "Gallery"
+	elseif Workspace:FindFirstChild("Forest") then
+		return "Forest"
+	elseif Workspace:FindFirstChild("School") then
+		return "School"
+	elseif Workspace:FindFirstChild("Hospital") then
+		return "Hospital"
+	elseif Workspace:FindFirstChild("Metro") then
+		return "Metro"
+	elseif Workspace:FindFirstChild("Carnival") then
+		return "Carnival"
+	elseif Workspace:FindFirstChild("City") then
+		return "City"
+	elseif Workspace:FindFirstChild("Mall") then
+		return "Mall"
+	elseif Workspace:FindFirstChild("Outpost") then
+		return "Outpost"
+	elseif Workspace:FindFirstChild("Plant") then
+		return "Plant"
+	end
+
+	return nil
+end
+
+--// Scanner
+FoundItems = FoundItems or {}
+ItemButtons = ItemButtons or {}
+
+local function IsPickup(Object)
+	return Object:IsA("Script")
+		and (Object.Name:lower():find("pick") or Object.Name == "Script")
+		and Object.Parent
+		and Object.Parent:IsA("BasePart")
+		and Object.Parent.Transparency < 1
+		and Object.Parent:FindFirstChildWhichIsA("ClickDetector")
+end
+
+local function ScanItems()
+	table.clear(FoundItems)
+	
+
+	for _, Object in ipairs(Workspace:GetDescendants()) do
+		if IsPickup(Object) then
+			table.insert(FoundItems, Object.Parent)
+		end
+	end
+
+	--print("FOUND:", #FoundItems)
+	return FoundItems
+end
+
+task.spawn(function()
+	repeat
+		if not ItemFinderAlive then
+			return
+		end
+		ScanItems()
+		task.wait(2.5)
+	until #FoundItems > 0 or not ItemFinderAlive
+end)
+
+
+local CurrentMap
+for _ = 1, 50 do
+	CurrentMap = GetCurrentMap()
+	if CurrentMap then
+		break
+	end
+	task.wait(0.1)
+end
+
+local MapDoors = CurrentMap and SavedDoors[CurrentMap]
+
+--print("Found:", #FoundItems)
+
+for _, Item in ipairs(FoundItems) do
+	print(Item.Name, Item:GetFullName())
+end
+
+
+
+--=_________
+--=| Part 2 |
+--=|________|
+
+--// Locked Door Scanner
+LockedDoors = LockedDoors or {}
+
+-- Forward declaration
+local UnlockDoor
+
+local function ScanDoors()
+	table.clear(LockedDoors)
+
+	for _, Object in ipairs(Workspace:GetDescendants()) do
+		if Object:IsA("BasePart") then
+			local ClickDetector = Object:FindFirstChildWhichIsA("ClickDetector")
+			if ClickDetector then
+				local Model = Object:FindFirstAncestorOfClass("Model")
+
+				local SoundCount = 0
+				local UnlockSound = nil
+
+				for _, Child in ipairs(Object:GetChildren()) do
+					if Child:IsA("Sound") then
+						SoundCount += 1
+						UnlockSound = UnlockSound or Child
+					end
+				end
+
+				local isHouseHammer =
+					CurrentMap == "House"
+					and (Object.Position - Vector3.new(27.621645, 41.469799, -42.1999512)).Magnitude < 4
+
+				if isHouseHammer or SoundCount <= 2 then
+					table.insert(LockedDoors, {
+						Part = Object,
+						Model = Model,
+						ClickDetector = ClickDetector,
+						Sound = isHouseHammer and nil or UnlockSound
+					})
+				end
+			end
+		end
+	end
+
+	for _, Object in ipairs(workspace:GetDescendants()) do
+		if Object:IsA("Model")
+			and Object:FindFirstChild("Humanoid")
+			and Object:FindFirstChild("HumanoidRootPart")
+			and Object:FindFirstChild("Enemy")
+			and Object:FindFirstChild("PhotoReady") then
+
+			table.insert(LockedDoors, {
+				Part = Object:FindFirstChild("HumanoidRootPart"),
+				Model = Object,
+				ClickDetector = nil,
+				Sound = nil
+			})
+
+			break
+		end
+	end
+
+	print("Locked Doors:", #LockedDoors)
+	for i, v in pairs(LockedDoors) do
+		print("Door:", v.Model)
+	end
+end
+
+ScanDoors()
+UpdateStats()
+
+local function WaitForDoorSuccess(door, itemName)
+	task.spawn(function()
+		local success = false
+
+		-- METHOD 1: Door removed
+		if door and door.Parent then
+			door.AncestryChanged:Connect(function(_, parent)
+				if not parent then
+					success = true
+				end
+			end)
+		end
+
+		-- METHOD 2: Sound detection (BEST)
+		local sound = workspace:FindFirstChildWhichIsA("Sound", true)
+		if sound then
+			sound.Played:Connect(function()
+				success = true
+			end)
+		end
+
+		-- METHOD 3: small delay fallback
+		task.wait(1)
+
+		if success then
+			print("✅ SUCCESS:", itemName, "door unlocked!")
+		end
+	end)
+end
+
+--// Collect Item
+local function CollectItem(Item, DoUnlock)
+
+	local Character = Player.Character
+	if not Character then
+		return
+	end
+
+	local HRP = Character:FindFirstChild("HumanoidRootPart")
+	local Humanoid = Character:FindFirstChildOfClass("Humanoid")
+
+	if not HRP or not Humanoid then
+		return
+	end
+
+	local ClickDetector = Item:FindFirstChildWhichIsA("ClickDetector", true)
+
+	if not ClickDetector then
+		warn("No ClickDetector")
+		return
+	end
+
+	local OldPosition = HRP.CFrame
+local OldWalkSpeed = Humanoid.WalkSpeed
+local OldJumpPower = Humanoid.JumpPower
+local OldHipHeight = Humanoid.HipHeight
+local OldPlatformStand = Humanoid.PlatformStand
+local OldAutoRotate = Humanoid.AutoRotate
+
+	Humanoid:ChangeState(Enum.HumanoidStateType.Physics)
+    HRP.AssemblyLinearVelocity = Vector3.zero
+HRP.AssemblyAngularVelocity = Vector3.zero
+	HRP.CFrame = Item.CFrame + Vector3.new(0,3,0)
+	task.wait()
+
+Humanoid:ChangeState(Enum.HumanoidStateType.Running)
+Humanoid.AutoRotate = true
+
+	local Start = os.clock()
+
+	while Item:IsDescendantOf(workspace) do
+
+--local root = game.Players.LocalPlayer.Character.HumanoidRootPart
+-- small sync wait
+
+-- ensure close enough
+--if (root.Position - clickDetector.Parent.Position).Magnitude < 10 then
+    
+	fireclickdetector(ClickDetector)
+task.wait(0.001)
+		if os.clock() - Start >= 3 then
+			warn("Timed out!")
+			break
+		end
+
+		task.wait(0.01)
+
+	end
+
+	if not Item:IsDescendantOf(workspace) then
+		print(Item.Name .. " collected!")
+		
+
+		
+
+		
+
+if DoUnlock ~= false then
+	print("Waiting for tool to unlock door...")
+	local Tool
+
+	repeat
+		task.wait(0.03)
+
+		Tool = Player.Backpack:FindFirstChildWhichIsA("Tool", true)
+			or Player.Character:FindFirstChildWhichIsA("Tool", true)
+
+		print("Tool:", Tool and Tool.Name or "nil")
+
+	until Tool
+
+	print("Found Tool:", Tool.Name)
+
+	UnlockDoor(Tool.Name)
+end
+
+
+	end
+
+	-- Return back
+	task.wait(0.03)
+
+-- reset velocities
+HRP.AssemblyLinearVelocity = Vector3.zero
+HRP.AssemblyAngularVelocity = Vector3.zero
+-- restore position safely
+HRP.CFrame = OldPosition + Vector3.new(0, 3, 0)
+
+
+-- restore humanoid
+Humanoid.WalkSpeed = OldWalkSpeed
+Humanoid.JumpPower = OldJumpPower
+Humanoid.HipHeight = OldHipHeight
+Humanoid.PlatformStand = false
+Humanoid.AutoRotate = OldAutoRotate
+
+-- force state reset (VERY IMPORTANT)
+Humanoid:ChangeState(Enum.HumanoidStateType.GettingUp)
+task.wait()
+Humanoid:ChangeState(Enum.HumanoidStateType.Running)
+
+	task.wait()
+
+	Humanoid:ChangeState(Enum.HumanoidStateType.GettingUp)
+
+	task.wait()
+
+	Humanoid:ChangeState(Enum.HumanoidStateType.Running)
+
+end
+
+local function ShouldUnlockAll(Tool)
+	if not Tool then
+		return false
+	end
+
+
+	-- Example change it.
+	if Tool.Name == "Wrench"
+or Tool.TextureId == "rbxassetid://16885384"
+
+or Tool.Name == "Hammer"
+or Tool.TextureId == "rbxassetid://16198783" then
+	return true
+end
+
+
+	return false
+end
+
+
+--checks if doors are saved or not.
+local function TryUnlockDoor(Door, ItemName, HRP, Humanoid, OldPosition, OldWalkSpeed, OldJumpPower, UnlockAll, IsSaved)
+	if not Door.Part:IsDescendantOf(workspace) then
+		return false
+	end
+
+	print("Trying door:", Door.Part:GetFullName())
+	print("Door:", Door.Part.Name)
+HRP.AssemblyLinearVelocity = Vector3.zero
+HRP.AssemblyAngularVelocity = Vector3.zero
+	HRP.CFrame = CFrame.new(Door.Part.Position + Vector3.new(0,2,0))
+	task.wait()
+
+Humanoid:ChangeState(Enum.HumanoidStateType.Running)
+Humanoid.AutoRotate = true
+
+
+    if not IsSaved then
+    	for i = 1,10 do
+    	    HRP.AssemblyLinearVelocity = Vector3.zero
+            HRP.AssemblyAngularVelocity = Vector3.zero
+    		HRP.CFrame = CFrame.new(Door.Part.Position + Vector3.new(0,2,0))
+    		task.wait()
+
+Humanoid:ChangeState(Enum.HumanoidStateType.Running)
+Humanoid.AutoRotate = true
+
+    		task.wait(0.02)
+    	end
+    else
+    	-- instant teleport for saved doors
+    	HRP.AssemblyLinearVelocity = Vector3.zero
+        HRP.AssemblyAngularVelocity = Vector3.zero
+    	HRP.CFrame = CFrame.new(Door.Part.Position + Vector3.new(0,2,0))
+    	task.wait()
+
+Humanoid:ChangeState(Enum.HumanoidStateType.Running)
+Humanoid.AutoRotate = true
+
+    end
+
+
+	local OriginalCFrame = Door.Part.CFrame
+	local DoorPosition = Door.Part.Position
+	local Success = false
+	local SkipDoor = false
+
+	for i = 1,10 do
+		if Door.Sound and Door.Sound.IsPlaying then
+			Success = true
+			break
+		end
+
+		if not Door.Part:IsDescendantOf(workspace) then
+			SkipDoor = true
+			break
+		end
+
+		if Door.Part.CFrame ~= OriginalCFrame then
+			SkipDoor = true
+			break
+		end
+
+		local HasTool = Player.Backpack:FindFirstChild(ItemName)
+			or (Player.Character and Player.Character:FindFirstChild(ItemName))
+
+--[[
+
+		if not HasTool then
+			Humanoid.PlatformStand = false
+			Humanoid.WalkSpeed = OldWalkSpeed
+			Humanoid.JumpPower = OldJumpPower
+            HRP.AssemblyLinearVelocity = Vector3.zero
+            HRP.AssemblyAngularVelocity = Vector3.zero
+			HRP.CFrame = OldPosition
+
+
+			Humanoid:ChangeState(Enum.HumanoidStateType.GettingUp)
+			task.wait()
+			Humanoid:ChangeState(Enum.HumanoidStateType.Running)
+
+			print("Item disappeared. Stopping.")
+			Success = true
+break
+		end
+		]]
+
+
+
+
+            print("Trying click:", Door.Part.Name, i)
+            HRP.AssemblyLinearVelocity = Vector3.zero
+            HRP.AssemblyAngularVelocity = Vector3.zero
+            
+            HRP.CFrame = CFrame.new(Door.Part.Position + Vector3.new(0,2,0))
+            task.wait()
+
+Humanoid:ChangeState(Enum.HumanoidStateType.Running)
+Humanoid.AutoRotate = true
+
+            
+            if Door.ClickDetector and Door.ClickDetector.Parent then
+	HRP.AssemblyLinearVelocity = Vector3.zero
+	HRP.AssemblyAngularVelocity = Vector3.zero
+
+	HRP.CFrame = CFrame.new(Door.Part.Position + Vector3.new(0, 2, 0))
+	task.wait(0.05)
+
+	fireclickdetector(Door.ClickDetector)
+	task.wait(0.05)
+end
+            
+if IsSaved then
+	local savedPart = Door.Part
+	local savedClick = Door.ClickDetector
+
+	task.spawn(function()
+		local start = os.clock()
+		while os.clock() - start < 4 do
+			local ItemGone = not (
+				Player.Backpack:FindFirstChild(ItemName)
+				or (Player.Character and Player.Character:FindFirstChild(ItemName))
+			)
+
+			local DoorGone = not savedPart:IsDescendantOf(workspace)
+			local ClickGone = (not savedClick) or (not savedClick.Parent)
+
+			if ItemGone or DoorGone or ClickGone then
+				pcall(function()
+					game.StarterGui:SetCore("SendNotification", {
+						Title = "Item Finder",
+						Text = ItemName .. " used!",
+						Duration = 3
+					})
+					
+				end)
+				break
+			end
+
+			task.wait(0.1)
+		end
+	end)
+
+	HRP.AssemblyLinearVelocity = Vector3.zero
+	HRP.AssemblyAngularVelocity = Vector3.zero
+	HRP.CFrame = OldPosition + Vector3.new(0, 3, 0)
+
+	Humanoid.PlatformStand = false
+	Humanoid.WalkSpeed = OldWalkSpeed
+	Humanoid.JumpPower = OldJumpPower
+	Humanoid:ChangeState(Enum.HumanoidStateType.GettingUp)
+	task.wait()
+	Humanoid:ChangeState(Enum.HumanoidStateType.Running)
+
+	return true
+end
+
+            
+            
+
+
+
+		local ItemGone = not (
+			Player.Backpack:FindFirstChild(ItemName)
+			or (Player.Character and Player.Character:FindFirstChild(ItemName))
+		)
+
+		local DoorGone = not Door.Part:IsDescendantOf(workspace)
+		local ClickGone = (not Door.ClickDetector) or (not Door.ClickDetector.Parent)
+
+		if ItemGone or DoorGone or ClickGone then
+			print("SUCCESFULLY UNLOCKED", ItemGone, DoorGone, ClickGone)
+            Success = true
+            break
+		end
+
+		task.wait(0.008)
+	end
+
+	if Success then
+		
+		RecordDoor(CurrentMap, ItemName, DoorPosition)
+		
+
+		game.StarterGui:SetCore("SendNotification", {
+			Title = "Item Finder",
+			Text = ItemName .. " used!",
+			Duration = 3
+		})
+
+		
+
+		Humanoid.PlatformStand = false
+		Humanoid.WalkSpeed = OldWalkSpeed
+		Humanoid.JumpPower = OldJumpPower
+        HRP.AssemblyLinearVelocity = Vector3.zero
+        HRP.AssemblyAngularVelocity = Vector3.zero
+		HRP.CFrame = OldPosition
+
+
+		Humanoid:ChangeState(Enum.HumanoidStateType.GettingUp)
+		task.wait()
+		Humanoid:ChangeState(Enum.HumanoidStateType.Running)
+
+		if UnlockAll then
+			game.StarterGui:SetCore("SendNotification", {
+				Title = "Item Finder",
+				Text = "Unlocked: " .. Door.Part.Name,
+				Duration = 2
+			})
+			
+		end
+
+		return true
+	end
+
+	if SkipDoor then
+		return false
+	end
+
+	Humanoid.PlatformStand = false
+	Humanoid.WalkSpeed = OldWalkSpeed
+	Humanoid.JumpPower = OldJumpPower
+    HRP.AssemblyLinearVelocity = Vector3.zero
+    HRP.AssemblyAngularVelocity = Vector3.zero
+	HRP.CFrame = OldPosition
+
+
+	Humanoid:ChangeState(Enum.HumanoidStateType.GettingUp)
+	task.wait()
+	Humanoid:ChangeState(Enum.HumanoidStateType.Running)
+
+	return false
+end
+
+--for NPC
+local function GetSpecialDoor()
+	for _, Door in ipairs(LockedDoors) do
+		if Door.Model and Door.Model:FindFirstChildOfClass("Humanoid") then
+			local Root = Door.Model:FindFirstChild("HumanoidRootPart")
+				or Door.Model.PrimaryPart
+				or Door.Part
+
+			if Root and Door.ClickDetector then
+				return Door, Root
+			end
+		end
+	end
+
+	return nil, nil
+end
+
+--Mr.P NPC
+local function IsPhotoNPCModel(Model)--Detector
+	if not Model then
+		return false
+	end
+
+	return Model:FindFirstChild("Humanoid")
+		and Model:FindFirstChild("HumanoidRootPart")
+		and Model:FindFirstChild("PhotoReady")
+		and Model:FindFirstChild("Enemy")
+end
+
+function GetPhotoNPC()--Finder
+	for _, door in pairs(LockedDoors) do
+		local model = door.Model
+
+		if model
+			and model:FindFirstChild("Enemy")
+			and model:FindFirstChild("PhotoReady")
+			and model:FindFirstChild("HumanoidRootPart") then
+
+			return door, model:FindFirstChild("HumanoidRootPart")
+		end
+	end
+end
+
+local LastScannedMap = nil
+
+--// Unlock Door
+UnlockDoor = function(ItemName)
+	local Character = Player.Character
+	if not Character then
+		return false
+	end
+
+	local HRP = Character:FindFirstChild("HumanoidRootPart")
+	local Humanoid = Character:FindFirstChildOfClass("Humanoid")
+
+	if not HRP or not Humanoid then
+		return false
+	end
+
+	local OldPosition = HRP.CFrame
+local OldWalkSpeed = Humanoid.WalkSpeed
+local OldJumpPower = Humanoid.JumpPower
+local OldHipHeight = Humanoid.HipHeight
+local OldPlatformStand = Humanoid.PlatformStand
+local OldAutoRotate = Humanoid.AutoRotate
+	local Tool =
+	Player.Backpack:FindFirstChild(ItemName, true)
+	or Player.Character:FindFirstChild(ItemName, true)
+
+    local UnlockAll = ShouldUnlockAll(Tool)
+
+local OldWalkSpeed = Humanoid.WalkSpeed
+local OldJumpPower = Humanoid.JumpPower
+-- keep player stable but NOT frozen
+Humanoid.WalkSpeed = OldWalkSpeed
+Humanoid.JumpPower = OldJumpPower
+Humanoid.AutoRotate = false
+
+HRP.AssemblyLinearVelocity = Vector3.zero
+HRP.AssemblyAngularVelocity = Vector3.zero
+
+local CurrentMap = GetCurrentMap()
+local MapDoors = CurrentMap and SavedDoors[CurrentMap]
+
+local LastScannedMap = LastScannedMap or nil
+if CurrentMap ~= LastScannedMap then
+	ScanDoors()
+	UpdateStats()
+	LastScannedMap = CurrentMap
+end
+
+--zizze NPC TP
+	if ItemName == "Grass" then
+		local SpecialDoor, Root = GetSpecialDoor()
+		if SpecialDoor and Root then
+		    HRP.AssemblyLinearVelocity = Vector3.zero
+            HRP.AssemblyAngularVelocity = Vector3.zero
+			HRP.CFrame = Root.CFrame + Vector3.new(0, 3, 0)
+			task.wait()
+
+Humanoid:ChangeState(Enum.HumanoidStateType.Running)
+Humanoid.AutoRotate = true
+			task.wait(0.05)
+
+			fireclickdetector(SpecialDoor.ClickDetector)
+
+			task.wait(0.1)
+			HRP.AssemblyLinearVelocity = Vector3.zero
+            HRP.AssemblyAngularVelocity = Vector3.zero
+			HRP.CFrame = OldPosition
+			task.wait()
+
+Humanoid:ChangeState(Enum.HumanoidStateType.Running)
+Humanoid.AutoRotate = true
+
+			return true
+		end
+	end
+--Mr.P NPC TP
+if ItemName == "Photo" and CurrentMap == "Plant" then
+	local PhotoDoor, NPCPart = GetPhotoNPC()
+	if PhotoDoor and NPCPart then
+	    --put something before TP
+	    
+	    -- EQUIP PHOTO FIRST
+local player = game.Players.LocalPlayer
+local char = player.Character or player.CharacterAdded:Wait()
+local backpack = player:WaitForChild("Backpack")
+
+local tool = backpack:FindFirstChild("Photo")
+	or (char and char:FindFirstChild("Photo"))
+
+local Handle = nil
+
+if tool then
+	local humanoid = char:FindFirstChildOfClass("Humanoid")
+
+	-- Equip properly
+	if humanoid then
+		pcall(function()
+			humanoid:EquipTool(tool)
+		end)
+	end
+
+	task.wait(0.15)
+
+	if tool.Parent ~= char then
+		tool.Parent = char
+	end
+
+	task.wait(0.15)
+
+	pcall(function()
+		tool:Activate()
+	end)
+
+	-- get handle AFTER equip
+	Handle = tool:FindFirstChild("Handle") or tool:FindFirstChildWhichIsA("BasePart")
+end
+
+
+-- NOW TELEPORT
+HRP.AssemblyLinearVelocity = Vector3.zero
+HRP.AssemblyAngularVelocity = Vector3.zero
+HRP.CFrame = NPCPart.CFrame * CFrame.new(0, 0, 1.5)
+task.wait()
+
+Humanoid:ChangeState(Enum.HumanoidStateType.Running)
+Humanoid.AutoRotate = true
+
+task.wait(0.1)
+
+
+-- THEN TOUCH NPC
+if Handle and NPCPart then
+	firetouchinterest(Handle, NPCPart, 0)
+	task.wait(0.1)
+	firetouchinterest(Handle, NPCPart, 1)
+end
+	    
+	    
+	    
+	    
+	    --[[
+	    
+	    --TP to mr.p
+	    HRP.AssemblyLinearVelocity = Vector3.zero
+        HRP.AssemblyAngularVelocity = Vector3.zero
+		HRP.CFrame = NPCPart.CFrame * CFrame.new(0, 0, 1.5)
+		task.wait()
+
+Humanoid:ChangeState(Enum.HumanoidStateType.Running)
+Humanoid.AutoRotate = true
+
+		task.wait(0.2)
+		
+		]]
+		return true
+	end
+end
+
+local SavedPositions = MapDoors and MapDoors[ItemName]
+
+local Unlocked = false
+
+if SavedPositions then
+	for _, DoorPos in ipairs(SavedPositions) do
+		for _, Door in ipairs(LockedDoors) do
+			if Door.Part:IsDescendantOf(workspace) and (Door.Part.Position - DoorPos).Magnitude < 1 then
+				if TryUnlockDoor(Door, ItemName, HRP, Humanoid, OldPosition, OldWalkSpeed, OldJumpPower, UnlockAll, true) then
+	Unlocked = true
+end
+			end
+		end
+	end
+
+	if Unlocked then
+		return true
+	end
+end
+
+
+for _, Door in ipairs(LockedDoors) do
+	if TryUnlockDoor(Door, ItemName, HRP, Humanoid, OldPosition, OldWalkSpeed, OldJumpPower, UnlockAll, false) then
+		return true
+	end
+end
+
+
+	Humanoid.PlatformStand = false
+Humanoid.WalkSpeed = OldWalkSpeed
+Humanoid.JumpPower = OldJumpPower
+HRP.AssemblyLinearVelocity = Vector3.zero
+HRP.AssemblyAngularVelocity = Vector3.zero
+HRP.CFrame = OldPosition
+
+
+	Humanoid:ChangeState(Enum.HumanoidStateType.GettingUp)
+	task.wait()
+	Humanoid:ChangeState(Enum.HumanoidStateType.Running)
+	
+	if UnlockAll then
+	game.StarterGui:SetCore("SendNotification", {
+		Title = "Item Finder",
+		Text = "Finished unlocking all doors.",
+		Duration = 3
+	})
+end
+
+	print("No matching door found.")
+
+	return false
+
+end
+
+
+-- Item original name finder
+local GetItemDetails
+
+GetItemDetails = function(Item)
+	local Details = {}
+
+	if not Item then
+		return "Item=nil"
+	end
+
+	table.insert(Details, "Name=" .. tostring(Item.Name))
+	table.insert(Details, "Class=" .. tostring(Item.ClassName))
+
+	local SurfaceGui = Item:FindFirstChildWhichIsA("SurfaceGui", true)
+	if SurfaceGui then
+		table.insert(Details, "HasSurfaceGui=true")
+	end
+
+	local Mesh = Item:FindFirstChildWhichIsA("SpecialMesh", true)
+	if Mesh then
+		table.insert(Details, "MeshId=" .. tostring(Mesh.MeshId or ""))
+		table.insert(Details, "TextureId=" .. tostring(Mesh.TextureId or ""))
+
+		local Part = Mesh.Parent
+		if Part and Part:IsA("BasePart") then
+			table.insert(Details, "BrickColor=" .. tostring(Part.BrickColor.Name))
+			table.insert(Details, "Color=" .. tostring(Part.Color))
+			table.insert(Details, "Size=" .. tostring(Part.Size))
+			table.insert(Details, "Material=" .. tostring(Part.Material))
+		end
+	end
+
+	local Part = Item:IsA("BasePart") and Item or Item:FindFirstChildWhichIsA("BasePart", true)
+	if Part then
+		table.insert(Details, "PartColor=" .. tostring(Part.BrickColor.Name))
+		table.insert(Details, "PartSize=" .. tostring(Part.Size))
+		table.insert(Details, "PartMaterial=" .. tostring(Part.Material))
+	end
+
+	return table.concat(Details, " | ")
+end
+
+local UnknownText = ""
+local CopiedUnknownItems = {}
+
+local function CopyUnknown(Item)
+	local Mesh = Item:FindFirstChildWhichIsA("SpecialMesh", true)
+	if not Mesh then
+		return
+	end
+
+	local MeshId = tostring(Mesh.MeshId or "")
+	local TextureId = tostring(Mesh.TextureId or "")
+
+	local Part = Mesh.Parent
+	local Extra = ""
+
+	if Part and Part:IsA("BasePart") then
+		Extra ..= '\nlocal Part = Mesh.Parent'
+		Extra ..= '\nif Part and Part:IsA("BasePart") then'
+
+		if Part.BrickColor then
+			Extra ..= '\n\tif Part.BrickColor == BrickColor.new("' .. Part.BrickColor.Name .. '") then'
+			Extra ..= '\n\t\treturn "UnknownItem"'
+			Extra ..= '\n\tend'
+		end
+
+		Extra ..= '\nend'
+	end
+
+	local Code
+
+	if TextureId ~= "" then
+		Code =
+'-- Unknown Item\n' ..
+'if string.find(MeshId, "' .. MeshId:match("%d+") .. '", 1, true)\n' ..
+'and string.find(tostring(Mesh.TextureId), "' .. TextureId:match("%d+") .. '", 1, true) then' ..
+Extra ..
+'\n\treturn "UnknownItem"\nend\n'
+	else
+		Code =
+'-- Unknown Item\n' ..
+'if string.find(MeshId, "' .. MeshId:match("%d+") .. '", 1, true) then' ..
+Extra ..
+'\n\treturn "UnknownItem"\nend\n'
+	end
+
+	if CopiedUnknownItems[Code] then
+		return
+	end
+
+	CopiedUnknownItems[Code] = true
+
+	setclipboard(Code)
+
+	print(Code)
+	warn("Unknown item code copied to clipboard.")
+end
+
+
+
+local function IdentifyPiggyItem(Item)
+	if not Item then
+		return "Unknown Item"
+	end
+
+	local ok, Result = pcall(function()
+	    
+		-- KeyCode
+		if Item:FindFirstChildWhichIsA("SurfaceGui", true) then
+			return "KeyCode"
+		end
+
+if Item:IsA("BasePart") then
+	if Item.Material == Enum.Material.WoodPlanks
+	and Item.BrickColor == BrickColor.new("Burnt Sienna") then
+		return "Plank"
+	end
+end
+
+-- Photo
+local function close(a, b)
+	return math.abs(a - b) < 0.01
+end
+local part = Item:IsA("BasePart") and Item or Item:FindFirstChildWhichIsA("BasePart")
+if part then
+	local s = part.Size
+	local match1 =
+		close(s.X, 1.215) and
+		close(s.Y, 0.10125) and
+		close(s.Z, 1.35)
+	local match2 =
+		close(s.Z, 1.215) and
+		close(s.Y, 0.10125) and
+		close(s.X, 1.35)
+	if part.BrickColor == BrickColor.new("Institutional white")
+	and part.Material == Enum.Material.SmoothPlastic
+	and (match1 or match2) then
+		return "Photo"
+	end
+end
+
+
+--mesh items detector
+		local Mesh = Item:FindFirstChildWhichIsA("SpecialMesh", true)
+
+		if Mesh then
+			local MeshId = tostring(Mesh.MeshId or "")
+
+			-- Keys
+if string.find(MeshId, "456878024", 1, true) then
+local Part = Mesh.Parent
+if Part and Part:IsA("BasePart") then
+    
+print("Key:", Part.BrickColor.Name)
+print("Color3:", Part.Color)
+    
+local Color = string.lower(tostring(Part.BrickColor.Name))
+
+
+if string.find(Color, "blue", 1, true) then
+    return "BlueKey"
+elseif string.find(Color, "really red", 1, true) then
+    return "RedKey"
+elseif string.find(Color, "lime green", 1, true) then
+    return "GreenKey"
+
+elseif string.find(Color, "neon orange", 1, true) then
+    return "OrangeKey"
+
+elseif string.find(Color, "royal purple", 1, true)
+    or string.find(Color, "alder", 1, true)
+    or string.find(Color, "purple", 1, true)
+    or string.find(Color, "violet", 1, true) then
+    return "PurpleKey"
+elseif string.find(Color, "institutional white", 1, true) then
+    return "WhiteKey"
+elseif string.find(Color, "gold", 1, true)
+or string.find(Color, "yellow", 1, true) then
+    return "YellowKey"
+
+elseif string.find(Color, "cyan", 1, true)
+or string.find(Color, "toothpaste", 1, true)
+or string.find(Color, "pastel blue", 1, true) then
+    return "CyanKey"
+end
+				end
+
+				return "Key"
+			end
+
+-- Hammer
+if string.find(MeshId, "16198309", 1, true) then
+	return "Hammer"
+end
+
+-- Wrench
+if string.find(MeshId, "16884681", 1, true) then
+	return "Wrench"
+end
+
+-- Gears
+if string.find(MeshId, "524706126", 1, true) then
+	local Part = Mesh.Parent
+	if Part and Part:IsA("BasePart") then
+		if Part.Color.R > Part.Color.G then
+			return "RedGear"
+		else
+			return "GreenGear"
+		end
+	end
+	return "Gear"
+end
+
+-- Battery
+if string.find(MeshId, "32241525", 1, true) then
+	return "Battery"
+end
+
+-- Red Egg
+if string.find(MeshId, "24829283", 1, true)
+and string.find(tostring(Mesh.TextureId), "108287140", 1, true) then
+	return "RedEgg"
+end
+
+-- Green Egg
+if string.find(MeshId, "24829283", 1, true)
+and string.find(tostring(Mesh.TextureId), "108287537", 1, true) then
+	return "GreenEgg"
+end
+
+-- Bone
+if string.find(MeshId, "1076136382", 1, true) then
+	return "Bone"
+end
+
+-- Torch
+if string.find(MeshId, "31584522", 1, true) then
+	if Item.Name == "LitTorch" then
+		return "LitTorch"
+	end
+	return "Torch"
+end
+
+-- Book
+if string.find(MeshId, "1136139", 1, true) then
+	return "Book"
+end
+
+-- Coin
+if string.find(MeshId, "4687178936", 1, true) then
+	return "Coin"
+end
+
+-- WaterGun
+if string.find(MeshId, "1771168429", 1, true) then
+	return "WaterGun"
+end
+
+-- Mallet
+if string.find(MeshId, "120607730", 1, true) then
+	return "Mallet"
+end
+
+
+-- Grass
+if string.find(MeshId, "577111754", 1, true) then
+	return "Grass"
+end
+
+-- TNT
+if string.find(MeshId, "12891705", 1, true) then
+	return "TNT"
+end
+
+-- FireExtinguisher
+if string.find(MeshId, "27787143", 1, true) then
+	return "FireExtinguisher"
+end
+
+-- Crowbar
+if string.find(MeshId, "21426303", 1, true) then
+	return "Crowbar"
+end
+
+-- Shell
+    if string.find(MeshId, "991156270", 1, true) then
+	return "Shell"
+    end
+end
+		return nil
+	end)
+
+	if ok and Result then
+		return Result
+	end
+
+	CopyUnknown(Item)
+	return "Unknown Item"
+end
+
+ItemTypeCount = ItemTypeCount or {}
+local function GetDisplayName(BaseName)
+	ItemTypeCount[BaseName] = (ItemTypeCount[BaseName] or 0) + 1
+
+	local Count = ItemTypeCount[BaseName]
+	if Count > 1 then
+		return BaseName .. " (" .. Count .. ")"
+	end
+	return BaseName
+end
+
+--create button
+local function CreateButton(Item)
+
+	local Button = Instance.new("TextButton")
+	ItemButtons[Item] = Button
+
+	Button.Parent = ScrollingFrame
+	Button.Size = UDim2.new(1, 0, 1, 0)
+	Button.BackgroundColor3 = Color3.fromRGB(21, 18, 29)
+	Button.BorderSizePixel = 0
+	Button.AutoButtonColor = true
+	Button.Text = ""
+
+	local ButtonCorner = Instance.new("UICorner")
+	ButtonCorner.Parent = Button
+	ButtonCorner.CornerRadius = UDim.new(0, 12)
+
+	local Stroke = Instance.new("UIStroke")
+	Stroke.Parent = Button
+	Stroke.Thickness = 1
+	Stroke.Color = Color3.fromRGB(52, 43, 73)
+
+	------------------------------------------------
+	-- 3D Preview
+	------------------------------------------------
+
+	local View = Instance.new("ViewportFrame")
+	View.Parent = Button
+	View.Size = UDim2.new(1, -20, 0, 94)
+	View.Position = UDim2.new(0, 10, 0, -20)
+	View.BackgroundTransparency = 1
+	View.BorderSizePixel = 0
+
+	local Clone = Item:Clone()
+	Clone.Parent = View
+
+	local Camera = Instance.new("Camera")
+	Camera.Parent = View
+	View.CurrentCamera = Camera
+
+	local ObjectPosition = Clone.Position
+	local CameraPosition = ObjectPosition + Vector3.new(0, 3, 0)
+	Camera.CFrame = CFrame.new(CameraPosition, ObjectPosition)
+
+	------------------------------------------------
+	-- Name
+	------------------------------------------------
+
+	local NameLabel = Instance.new("TextLabel")
+	NameLabel.Parent = Button
+	NameLabel.Size = UDim2.new(1, -10, 0, 16)
+	NameLabel.Position = UDim2.new(0, 5, 1, -22)
+	NameLabel.BackgroundTransparency = 1
+	NameLabel.BorderSizePixel = 0
+	NameLabel.Font = Enum.Font.GothamMedium
+	NameLabel.TextScaled = false
+	NameLabel.TextWrapped = true
+	NameLabel.TextColor3 = Color3.fromRGB(141, 140, 153)
+
+	local NameCorner = Instance.new("UICorner")
+	NameCorner.Parent = NameLabel
+	NameCorner.CornerRadius = UDim.new(0, 5)
+
+	local BaseName = IdentifyPiggyItem(Item)
+	NameLabel.Text = string.upper(GetDisplayName(BaseName))
+
+	------------------------------------------------
+
+	Button.MouseButton1Click:Connect(function()
+		CollectItem(Item, CurrentMode == "Unlocker")
+	end)
+
+end
+-- Create buttons for items found in the first scan
+for _, Item in ipairs(FoundItems) do
+	CreateButton(Item)
+end
+
+
+
+--=_________
+--=| Part 3 |
+--=|________|
+
+local ScanQueued = false
+
+local function SyncItems()
+
+	local CurrentItems = {}
+
+	table.clear(FoundItems)
+	table.clear(ItemTypeCount)
+
+	for _, Object in ipairs(Workspace:GetDescendants()) do
+		
+		if IsPickup(Object) then
+			
+			local Item = Object.Parent
+			
+			CurrentItems[Item] = true
+			table.insert(FoundItems, Item)
+
+			-- Create new button
+			if not ItemButtons[Item] then
+				CreateButton(Item)
+			end
+			
+		end
+	end
+
+
+	-- Remove deleted items
+	for Item, Button in pairs(ItemButtons) do
+		
+		if not CurrentItems[Item] or not Item:IsDescendantOf(Workspace) then
+			
+			Button:Destroy()
+			ItemButtons[Item] = nil
+			
+		end
+		table.clear(ItemTypeCount)
+	end
+
+	UpdateStats()
+end
+
+
+local function QueueScan()
+
+	if ScanQueued then
+		return
+	end
+
+	ScanQueued = true
+
+	task.delay(0.2, function()
+		
+		ScanQueued = false
+		
+		SyncItems()
+		
+	end)
+
+end
+
+TrackConnection(
+	Workspace.DescendantAdded:Connect(QueueScan)
+)
+
+TrackConnection(
+	Workspace.DescendantRemoving:Connect(QueueScan)
+)
+-- First scan
+SyncItems()
+
+
+
+
+
